@@ -97,6 +97,10 @@ def get_users():
 @app.route('/users/<int:user_id>', methods=['GET'])
 def get_single_user(user_id):
     user = db.session.get(User, user_id)
+
+    if not user:
+        return jsonify({"message": "User does not exist"})
+
     return user_schema.jsonify(user), 200
 
 # POST /users: Create a new user
@@ -160,19 +164,113 @@ def delete_user(user_id):
 
 # TODO: Product Endpoints
 # GET /products: Retrieve all products
+
+@app.route('/products', methods=['GET'])
+def get_products():
+    query = select(Product)
+    products = db.session.execute(query).scalars().all()
+
+    return products_schema.jsonify(products), 200
+
 # GET /products/<id>: Retrieve a product by ID
+
+
+@app.route('/products/<int:product_id>', methods=['GET'])
+def get_product(product_id):
+    product = db.session.get(Product, product_id)
+
+    if not product:
+        return jsonify({"message": "Product does not exist"}), 400
+
+    return product_schema.jsonify(product), 200
+
 # POST /products: Create a new product
+
+
+@app.route('/products', methods=['POST'])
+def create_products():
+    try:
+        product_data = product_schema.load(request.json)
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+
+    new_product = Product(
+        product_name=product_data['product_name'],
+        price=product_data['price']
+    )
+    db.session.add(new_product)
+    db.session.commit()
+
+    return product_schema.jsonify(new_product), 201
+
+
 # PUT /products/<id>: Update a product by ID
+
+
+@app.route('/products/<int:product_id>', methods=['PUT'])
+def update_products(product_id):
+    product = db.session.get(Product, product_id)
+
+    if not product:
+        return jsonify({"message": "Product does not exist"}), 400
+
+    try:
+        product_data = product_schema.load(request.json)
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+
+    product.product_name = product_data['product_name']
+    product.price = product_data['price']
+
+    db.session.commit()
+    return product_schema.jsonify(product), 200
+
 # DELETE /products/<id>: Delete a product by ID
+
+
+@app.route('/products/<int:product_id>', methods=['DELETE'])
+def delete_products(product_id):
+    product = db.session.get(Product, product_id)
+
+    if not product:
+        return jsonify({"message": "Product does not exist"}), 400
+
+    db.session.delete(product)
+    db.session.commit()
+    return jsonify({"message": f"{product.product_name} has been deleted"})
 
 # ======================================================
 
 # TODO: Order Endpoints
 # POST /orders: Create a new order (requires user ID and order date)
+
+
+def create_order(user_id):
+    pass
+
 # GET /orders/<order_id>/add_product/<product_id>: Add a product to an order (prevent duplicates)
+
+
+def add_product(order_id, product_id):
+    pass
+
 # DELETE /orders/<order_id>/remove_product: Remove a product from an order
+
+
+def remove_product(order_id):
+    pass
+
+
 # GET /orders/user/<user_id>: Get all orders for a user
+
+def get_order(user_id):
+    pass
+
 # GET /orders/<order_id>/products: Get all products for an order
+
+
+def get_order_products(user_id):
+    pass
 
 
 if __name__ == "__main__":
