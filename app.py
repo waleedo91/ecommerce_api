@@ -84,37 +84,76 @@ products_schema = ProductSchema(many=True)
 
 # GET /users: Retrieve all users
 
-@app.route('/users', method=['GET'])
+@app.route('/users', methods=['GET'])
 def get_users():
-    pass
+    query = select(User)
+    users = db.session.execute(query).scalars().all()
+
+    return users_schema.jsonify(users), 200
 
 # GET /users/<id>: Retrieve a user by ID
 
 
-@app.route('/users/<int:user_id>', method=['GET'])
+@app.route('/users/<int:user_id>', methods=['GET'])
 def get_single_user(user_id):
-    pass
+    user = db.session.get(User, user_id)
+    return user_schema.jsonify(user), 200
 
 # POST /users: Create a new user
 
 
-@app.route('/users', method=['POST'])
+@app.route('/users', methods=['POST'])
 def create_user():
-    pass
+    try:
+        user_data = user_schema.load(request.json)
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+
+    new_user = User(
+        name=user_data['name'],
+        address=user_data['address'],
+        email=user_data['email']
+    )
+    db.session.add(new_user)
+    db.session.commit()
+
+    return user_schema.jsonify(new_user), 201
 
 # PUT /users/<id>: Update a user by ID
 
 
-@app.route('/users/<int:user_id>', method=['PUT'])
+@app.route('/users/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
-    pass
+    user = db.session.get(User, user_id)
+
+    if not user:
+        return jsonify({"message": "User does not exist"}), 400
+
+    try:
+        user_data = user_schema.load(request.json)
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+
+    user.name = user_data['name']
+    user.address = user_data['address']
+    user.email = user_data['email']
+
+    db.session.commit()
+    return user_schema.jsonify(user), 200
 
 # DELETE /users/<id>: Delete a user by ID
 
 
-@app.route('/user/<int:user_id>', method=['DELETE'])
+@app.route('/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
-    pass
+    user = db.session.get(User, user_id)
+
+    if not user:
+        return jsonify({"message": "User does not exist"}), 400
+
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"message": f"{user.name} has been deleted"})
 
 
 # ===================================================
