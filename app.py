@@ -34,6 +34,8 @@ class User(Base):
     address: Mapped[str] = mapped_column(String(200))
     email: Mapped[str] = mapped_column(String(200))
 
+    orders: Mapped[List['Order']] = relationship(back_populates='customer')
+
 
 class Order(Base):
     __tablename__ = "orders"
@@ -41,7 +43,9 @@ class Order(Base):
     order_date: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.now
     )
-    customer: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+
+    customer: Mapped['User'] = relationship(back_populates='orders')
     products: Mapped[List['Product']] = relationship(
         secondary=order_product, back_populates='orders')
 
@@ -245,14 +249,34 @@ def delete_products(product_id):
 # POST /orders: Create a new order (requires user ID and order date)
 
 
+@app.route("/orders/<int:user_id>", methods=['POST'])
 def create_order(user_id):
-    pass
+    user = db.session.get(User, user_id)
+
+    try:
+        order_data = order_schema.load(request.json)
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+
+    order_date = datetime.datetime.now()
+
+    new_order = Order(
+        user_id=user.id, order_date=order_date)
+    db.session.add(new_order)
+    db.session.commit()
+    return jsonify({"message": "Order Created"}), 201
 
 # GET /orders/<order_id>/add_product/<product_id>: Add a product to an order (prevent duplicates)
 
 
+@app.route('/orders/<int:order_id>/add_product/<int:product_id>', methods=['GET'])
 def add_product(order_id, product_id):
-    pass
+    order = db.session.get(Order, order_id)
+    product = db.session.get(Product, product_id)
+
+    order.products.append(product)
+    db.session.commit()
+    return jsonify({"Message": f"{product.product_name} has been added to cart"})
 
 # DELETE /orders/<order_id>/remove_product: Remove a product from an order
 
@@ -263,14 +287,18 @@ def remove_product(order_id):
 
 # GET /orders/user/<user_id>: Get all orders for a user
 
+@app.route('/orders/user/<int:user_id>', methods=['GET'])
 def get_order(user_id):
-    pass
+    user = db.session.get(User, user_id)
+    return orders_schema.jsonify(user.orders), 200
 
 # GET /orders/<order_id>/products: Get all products for an order
 
 
-def get_order_products(user_id):
-    pass
+@app.route('/orders/<int:order_id>/products', methods=['GET'])
+def get_order_products(order_id):
+    order = db.session.get(Order, order_id)
+    return products_schema.jsonify(order.products), 200
 
 
 if __name__ == "__main__":
